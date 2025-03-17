@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thông tin chi tiết sinh viên</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            margin: 20px auto;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            width: 30%;
+        }
+        img {
+            display: block;
+            margin: 20px auto;
+        }
+        .back-link {
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">Thông tin chi tiết sinh viên</h1>
+    <table>
+        {% for key, value in student_info.items() %}
+            <tr>
+                <th>{{ key }}</th>
+                <td>{{ value }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+    <div class="back-link">
+        <a href="{{ url_for('index') }}">Quay lại danh sách</a>
+    </div>
+</body>
+</html>

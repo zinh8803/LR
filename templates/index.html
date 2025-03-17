@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Dự đoán sinh viên nghỉ học</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            margin: 20px auto;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        img {
+            display: block;
+            margin: 20px auto;
+        }
+        .form-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .form-container label {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">Dự đoán sinh viên nghỉ học</h1>
+    <form method="post" enctype="multipart/form-data" class="form-container">
+        <label for="file">Tải lên file Excel (.xlsx):</label>
+        <input type="file" id="file" name="file" accept=".xlsx">
+        <label for="threshold">Ngưỡng xác suất (0-1):</label>
+        <input type="number" id="threshold" name="threshold" step="0.01" min="0" max="1" value="{{ threshold if threshold is defined else 0.5 }}">
+        <input type="submit" value="Phân tích">
+    </form>
+
+    {% if dropout_percentage is defined %}
+        <h2 style="text-align: center;">Kết quả (Ngưỡng: {{ threshold }})</h2>
+        <p style="text-align: center;">Phần trăm sinh viên được dự đoán nghỉ học: {{ dropout_percentage|round(2) }}%</p>
+        <p style="text-align: center;">Phần trăm sinh viên được dự đoán không nghỉ học: {{ not_dropout_percentage|round(2) }}%</p>
+        
+        <h3 style="text-align: center;">Danh sách sinh viên được dự đoán nghỉ học:</h3>
+        {{ dropout_students|safe }}
+        
+        <h3 style="text-align: center;">Danh sách sinh viên được dự đoán không nghỉ học:</h3>
+        {{ not_dropout_students|safe }}
+    {% endif %}
+</body>
+</html>
