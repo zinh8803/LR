@@ -28,6 +28,12 @@
         .form-container label {
             margin-right: 10px;
         }
+        .error-row {
+            background-color: #ffcccc; /* Màu đỏ nhạt cho các dòng sai số */
+        }
+        .error-table th {
+            background-color: #ff9999; /* Màu đỏ nhạt hơn cho tiêu đề bảng sai số */
+        }
     </style>
 </head>
 <body>
@@ -44,12 +50,20 @@
         <h2 style="text-align: center;">Kết quả (Ngưỡng: {{ threshold }})</h2>
         <p style="text-align: center;">Phần trăm sinh viên được dự đoán nghỉ học: {{ dropout_percentage|round(2) }}%</p>
         <p style="text-align: center;">Phần trăm sinh viên được dự đoán không nghỉ học: {{ not_dropout_percentage|round(2) }}%</p>
+        <p style="text-align: center;">Phần trăm sinh viên thực tế nghỉ học trong dữ liệu: {{ actual_dropout_percentage|round(2) }}%</p>
         
         <h3 style="text-align: center;">Danh sách sinh viên được dự đoán nghỉ học:</h3>
         {{ dropout_students|safe }}
         
         <h3 style="text-align: center;">Danh sách sinh viên được dự đoán không nghỉ học:</h3>
         {{ not_dropout_students|safe }}
+        
+        <h3 style="text-align: center;">Danh sách sinh viên có sai số (dự đoán sai):</h3>
+        {{ error_students|safe|replace('<tr>', '<tr class="error-row">')|replace('<th>', '<th class="error-table">') }}
+        
+        <h3 style="text-align: center;">Biểu đồ</h3>
+        <img src="data:image/png;base64,{{ bar_plot_url }}" alt="Biểu đồ cột">
+        <img src="data:image/png;base64,{{ pie_plot_url }}" alt="Biểu đồ tròn">
     {% endif %}
 </body>
 </html>

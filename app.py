@@ -17,20 +17,34 @@ app.secret_key = secrets.token_hex(16)  # Khóa bí mật 32 ký tự
 
 # Hàm xử lý dữ liệu
 def preprocess_data(df):
-    X = df.drop(columns=["Tên", "MSSV", "Nghỉ học"])
-    X = pd.get_dummies(X, columns=["Khoảng cách", "Cư trú"], drop_first=True)
-    y = df["Nghỉ học"]
-    return X, y
+    try:
+        # Đảm bảo cột Nghỉ học là số
+        if not pd.api.types.is_numeric_dtype(df["Nghỉ học"]):
+            raise ValueError("Cột 'Nghỉ học' phải là số (0 hoặc 1), không phải chuỗi.")
+        X = df.drop(columns=["Tên", "MSSV", "Nghỉ học", "Trạng thái nghỉ học"])  # Bỏ cột Trạng thái nghỉ học
+        X = pd.get_dummies(X, columns=["Khoảng cách", "Cư trú"], drop_first=True)
+        y = df["Nghỉ học"]
+        return X, y, None  # Trả về 3 giá trị, error_message là None nếu không có lỗi
+    except KeyError as e:
+        return None, None, f"Lỗi: Thiếu cột cần thiết trong dữ liệu - {str(e)}"
+    except Exception as e:
+        return None, None, f"Lỗi xử lý dữ liệu: {str(e)}"
 
 # Hàm huấn luyện mô hình
 def train_model(X_train, y_train):
-    model = LogisticRegression(max_iter=1000)
-    model.fit(X_train, y_train)
-    return model
+    try:
+        model = LogisticRegression(max_iter=1000)
+        model.fit(X_train, y_train)
+        return model
+    except Exception as e:
+        raise Exception(f"Lỗi huấn luyện mô hình: {str(e)}")
 
 # Hàm phân tích dữ liệu và tạo kết quả
 def analyze_dropout(df, threshold=0.5):
-    X, y = preprocess_data(df)
+    X, y, error_message = preprocess_data(df)
+    if X is None or y is None:
+        return 0, 0, 0, pd.DataFrame(), pd.DataFrame(), "", "", pd.DataFrame(), pd.DataFrame(), error_message
+
     kfold = KFold(n_splits=5, shuffle=True, random_state=42)
     all_probabilities = []
 
@@ -54,6 +68,12 @@ def analyze_dropout(df, threshold=0.5):
     df_with_prob = df.copy()
     df_with_prob["Xác suất nghỉ học (%)"] = [round(prob * 100, 6) for prob in student_probabilities]
     df_with_prob["Dự đoán nghỉ học"] = student_predictions
+
+    # Tìm các sinh viên có sai số
+    df_with_prob["Sai số"] = df_with_prob["Nghỉ học"] != df_with_prob["Dự đoán nghỉ học"]
+    error_students = df_with_prob[df_with_prob["Sai số"] == True][["Tên", "MSSV", "Nghỉ học", "Dự đoán nghỉ học", "Xác suất nghỉ học (%)"]]
+    if not error_students.empty:
+        error_students = pd.concat([error_students, pd.DataFrame({"Tên": ["Tổng"], "MSSV": [""], "Nghỉ học": [""], "Dự đoán nghỉ học": [""], "Xác suất nghỉ học (%)": [""], "Số lượng": [len(error_students)]}, index=[0])], ignore_index=True)
 
     dropout_students = df_with_prob.loc[df_with_prob["Dự đoán nghỉ học"] == 1][["Tên", "MSSV", "Xác suất nghỉ học (%)"]].sort_values(by="Xác suất nghỉ học (%)", ascending=False)
     not_dropout_students = df_with_prob.loc[df_with_prob["Dự đoán nghỉ học"] == 0][["Tên", "MSSV", "Xác suất nghỉ học (%)"]].sort_values(by="Xác suất nghỉ học (%)", ascending=True)
@@ -80,7 +100,7 @@ def analyze_dropout(df, threshold=0.5):
     plt.close()
 
     return (dropout_percentage, actual_dropout_percentage, not_dropout_percentage, 
-            dropout_students, not_dropout_students, bar_plot_url, pie_plot_url, df_with_prob)
+            dropout_students, not_dropout_students, bar_plot_url, pie_plot_url, df_with_prob, error_students, error_message)
 
 # Route trang chính
 @app.route('/', methods=['GET', 'POST'])
@@ -107,7 +127,10 @@ def index():
             return f"Lỗi khi đọc file Excel: {str(e)}", 500
 
     # Phân tích dữ liệu
-    dropout_percentage, actual_dropout_percentage, not_dropout_percentage, dropout_students, not_dropout_students, bar_plot_url, pie_plot_url, df_with_prob = analyze_dropout(df, threshold)
+    dropout_percentage, actual_dropout_percentage, not_dropout_percentage, dropout_students, not_dropout_students, bar_plot_url, pie_plot_url, df_with_prob, error_students, error_message = analyze_dropout(df, threshold)
+
+    if error_message:
+        return f"Lỗi: {error_message}", 500
 
     # Tạo HTML cho danh sách với liên kết đúng cú pháp
     dropout_students_html = dropout_students.to_html(index=False, escape=False)
@@ -117,6 +140,11 @@ def index():
     for mssv in not_dropout_students['MSSV'].astype(str):
         not_dropout_students_html = not_dropout_students_html.replace(f'>{mssv}<', f'><a href="{url_for("student_detail", mssv=mssv)}">{mssv}</a><')
 
+    # Tạo HTML cho danh sách sai số
+    error_students_html = error_students.to_html(index=False, escape=False) if not error_students.empty else "<p>Không có sai số.</p>"
+    for mssv in error_students['MSSV'].astype(str):
+        error_students_html = error_students_html.replace(f'>{mssv}<', f'><a href="{url_for("student_detail", mssv=mssv)}">{mssv}</a><')
+
     return render_template('index.html', 
                            dropout_percentage=dropout_percentage, 
                            actual_dropout_percentage=actual_dropout_percentage, 
@@ -125,7 +153,8 @@ def index():
                            not_dropout_students=not_dropout_students_html,
                            bar_plot_url=bar_plot_url, 
                            pie_plot_url=pie_plot_url,
-                           threshold=threshold)
+                           threshold=threshold,
+                           error_students=error_students_html)
 
 # Route hiển thị thông tin chi tiết của sinh viên
 @app.route('/student/<mssv>')
@@ -145,7 +174,6 @@ def student_detail(mssv):
     student_info = student.iloc[0].to_dict()
     
     return render_template('student_detail.html', student_info=student_info)
-
 
 if __name__ == '__main__':
     app.run(debug=True)

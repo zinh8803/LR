@@ -34,7 +34,13 @@
         {% for key, value in student_info.items() %}
             <tr>
                 <th>{{ key }}</th>
-                <td>{{ value }}</td>
+                <td>
+                    {% if key == 'Nghỉ học' or key == 'Trạng thái nghỉ học' %}
+                        {{ 'Có' if value == 1 else 'Không' }}
+                    {% else %}
+                        {{ value }}
+                    {% endif %}
+                </td>
             </tr>
         {% endfor %}
     </table>
