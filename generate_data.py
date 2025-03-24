@@ -81,6 +81,6 @@ def generate_student_data(n_students=100):
 
 # Tạo và lưu dữ liệu vào file Excel
 if __name__ == "__main__":
-    df = generate_student_data(20)
+    df = generate_student_data(100)
     df.to_excel("student_data.xlsx", index=False, engine='openpyxl')
     print("Đã tạo và lưu 100 bản ghi vào 'student_data.xlsx'.")
